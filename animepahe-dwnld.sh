@@ -30,3 +30,46 @@ set_var() {
     _ANIME_LIST_FILE="$_SCRIPT_PATH/anime.list"
     _SOURCE_FILE=".source.json"
 }
+
+set_args() {
+    expr "$*" : ".*--help" >/dev/null && usage
+    _PARALLEL_JOBS=1
+    while getopts ":hlda:s:e:r:t:o:" opt; do
+        case $opt in
+        a)
+            _INPUT_ANIME_NAME="$OPTARG"
+            ;;
+        s)
+            _ANIME_SLUG="$OPTARG"
+            ;;
+        e)
+            _ANIME_EPISODE="$OPTARG"
+            ;;
+        l)
+            _LIST_LINK_ONLY=true
+            ;;
+        r)
+            _ANIME_RESOLUTION="$OPTARG"
+            ;;
+        t)
+            _PARALLEL_JOBS="$OPTARG"
+            if [[ ! "$_PARALLEL_JOBS" =~ ^[0-9]+$ || "$_PARALLEL_JOBS" -eq 0 ]]; then
+                print_error "-t <num>: Number must be positive integer"
+            fi
+            ;;
+        o)
+            _ANIME_AUDIO="$OPTARG"
+            ;;
+        d)
+            _DEBUG_MODE=true
+            set -x
+            ;;
+        h)
+            usage
+            ;;
+        \?)
+            print_error "Invalid option: -$OPTARG"
+            ;;
+        esac
+    done
+}
