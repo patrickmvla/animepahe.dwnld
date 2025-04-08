@@ -1,5 +1,24 @@
 #!/usr/bin/env bash
 
+#/ Usage:
+#/   ./animepahe-dl.sh [-a <anime name>] [-s <anime_slug>] [-e <episode_num1,num2,num3-num4...>] [-r <resolution>] [-t <num>] [-l] [-d]
+#/
+#/ Options:
+#/   -a <name>               anime name
+#/   -s <slug>               anime slug/uuid, can be found in $_ANIME_LIST_FILE
+#/                           ignored when "-a" is enabled
+#/   -e <num1,num3-num4...>  optional, episode number to download
+#/                           multiple episode numbers seperated by ","
+#/                           episode range using "-"
+#/                           all episodes using "*"
+#/   -r <resolution>         optional, specify resolution: "1080", "720"...
+#/                           by default, the highest resolution is selected
+#/   -o <language>           optional, specify audio language: "eng", "jpn"...
+#/   -t <num>                optional, specify a positive integer as num of threads
+#/   -l                      optional, show m3u8 playlist link without downloading videos
+#/   -d                      enable debug mode
+#/   -h | --help             display this help message
+
 set -e
 set -u
 
@@ -32,46 +51,39 @@ set_var() {
 }
 
 set_args() {
-    expr "$*" : ".*--help" >/dev/null && usage
-    _PARALLEL_JOBS=1
+    _PARALLEL_JOBS=1 # Default value
+
+    # Check for --help explicitly
+    for arg in "$@"; do
+        if [[ "$arg" == "--help" ]]; then
+            usage
+        fi
+    done
+
     while getopts ":hlda:s:e:r:t:o:" opt; do
         case $opt in
-        a)
-            _INPUT_ANIME_NAME="$OPTARG"
-            ;;
-        s)
-            _ANIME_SLUG="$OPTARG"
-            ;;
-        e)
-            _ANIME_EPISODE="$OPTARG"
-            ;;
-        l)
-            _LIST_LINK_ONLY=true
-            ;;
-        r)
-            _ANIME_RESOLUTION="$OPTARG"
-            ;;
+        a) _INPUT_ANIME_NAME="$OPTARG" ;;
+        s) _ANIME_SLUG="$OPTARG" ;;
+        e) _ANIME_EPISODE="$OPTARG" ;;
+        l) _LIST_LINK_ONLY=true ;;
+        r) _ANIME_RESOLUTION="$OPTARG" ;;
         t)
             _PARALLEL_JOBS="$OPTARG"
             if [[ ! "$_PARALLEL_JOBS" =~ ^[0-9]+$ || "$_PARALLEL_JOBS" -eq 0 ]]; then
-                print_error "-t <num>: Number must be positive integer"
+                print_error "-t <num>: Number must be a positive integer"
             fi
             ;;
-        o)
-            _ANIME_AUDIO="$OPTARG"
-            ;;
+        o) _ANIME_AUDIO="$OPTARG" ;;
         d)
             _DEBUG_MODE=true
             set -x
             ;;
-        h)
-            usage
-            ;;
-        \?)
-            print_error "Invalid option: -$OPTARG"
-            ;;
+        h) usage ;;
+        \?) print_error "Invalid option: -$OPTARG" ;;
+        :) print_error "Option -$OPTARG requires an argument." ;;
         esac
     done
+    shift "$((OPTIND - 1))" # Remove processed options
 }
 
 print_info() {
@@ -90,6 +102,7 @@ print_error() {
     exit 1
 }
 
+
 command_not_found() {
     # $1: command name
     print_error "$1 command not found!"
@@ -97,5 +110,18 @@ command_not_found() {
 
 get() {
     # $1: url
-    "$_CURL" -sS -L "$1" -H "cookie: $_COOKIE" --compressed
+    "${_CURL}" -sS -L "$1" -H "cookie: ${_COOKIE}" --compressed
+}
+
+set_cookie() {
+    local u
+    u="$(LC_ALL=C tr -dc 'a-zA-Z0-9' </dev/urandom | head -c 16)"
+    _COOKIE="__ddg2_=$u"
+}
+
+download_anime_list() {
+    get "${_ANIME_URL}" |
+        grep "/anime/" |
+        sed -E 's|.*/anime/([^/]+)[^>]*>.*title="([^"]+).*|[\1] \2  |' \
+            >"${_ANIME_LIST_FILE}"
 }
