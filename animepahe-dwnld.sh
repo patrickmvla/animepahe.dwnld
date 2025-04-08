@@ -73,3 +73,29 @@ set_args() {
         esac
     done
 }
+
+print_info() {
+    # $1: info message
+    [[ -z "${_LIST_LINK_ONLY:-}" ]] && printf "%b\n" "\033[32m[INFO]\033[0m $1" >&2
+}
+
+print_warn() {
+    # $1: warning message
+    [[ -z "${_LIST_LINK_ONLY:-}" ]] && printf "%b\n" "\033[33m[WARNING]\033[0m $1" >&2
+}
+
+print_error() {
+    # $1: error message
+    printf "%b\n" "\033[31m[ERROR]\033[0m $1" >&2
+    exit 1
+}
+
+command_not_found() {
+    # $1: command name
+    print_error "$1 command not found!"
+}
+
+get() {
+    # $1: url
+    "$_CURL" -sS -L "$1" -H "cookie: $_COOKIE" --compressed
+}
