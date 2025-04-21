@@ -102,7 +102,6 @@ print_error() {
     exit 1
 }
 
-
 command_not_found() {
     # $1: command name
     print_error "$1 command not found!"
@@ -124,4 +123,18 @@ download_anime_list() {
         grep "/anime/" |
         sed -E 's|.*/anime/([^/]+)[^>]*>.*title="([^"]+).*|[\1] \2  |' \
             >"${_ANIME_LIST_FILE}"
+}
+
+search_anime_by_name() {
+    # $1: anime_name
+    local d n
+    d="$(get "$_HOST/api?m=search&q=${1// /%20}")"
+    n="$("$_JQ" -r '.total' <<< "$d")"
+    if [[ "$n" -eq "0" ]]; then
+        echo ""
+    else 
+        "$_JQ" -r '.data[] | "[\(.session)] \(.title)  "' <<< "$d" \
+            | time -a "$_ANIME_LIST_FILE" \
+            | remove_slug
+    fi
 }
